@@ -1,0 +1,193 @@
+package net.minecraft.client.gui.font;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.mojang.blaze3d.font.GlyphInfo;
+import com.mojang.blaze3d.font.GlyphProvider;
+import com.mojang.blaze3d.font.SheetGlyphInfo;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import net.minecraft.client.gui.font.glyphs.BakedGlyph;
+import net.minecraft.client.gui.font.glyphs.SpecialGlyphs;
+import net.minecraft.client.renderer.texture.TextureManager;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
+
+public class FontSet implements AutoCloseable {
+    private static final RandomSource f_95050_ = RandomSource.m_216327_();
+    private static final float f_242991_ = 32.0F;
+    private final TextureManager f_95051_;
+    private final ResourceLocation f_95052_;
+    private BakedGlyph f_95053_;
+    private BakedGlyph f_95054_;
+    private List<GlyphProvider.Conditional> f_315683_ = List.of();
+    private List<GlyphProvider> f_317127_ = List.of();
+    private final CodepointMap<BakedGlyph> f_95056_ = new CodepointMap<>(BakedGlyph[]::new, BakedGlyph[][]::new);
+    private final CodepointMap<FontSet.GlyphInfoFilter> f_95057_ = new CodepointMap<>(FontSet.GlyphInfoFilter[]::new, FontSet.GlyphInfoFilter[][]::new);
+    private final Int2ObjectMap<IntList> f_95058_ = new Int2ObjectOpenHashMap<>();
+    private final List<FontTexture> f_95059_ = Lists.newArrayList();
+
+    public FontSet(TextureManager p_95062_, ResourceLocation p_95063_) {
+        this.f_95051_ = p_95062_;
+        this.f_95052_ = p_95063_;
+    }
+
+    public void m_321905_(List<GlyphProvider.Conditional> p_332248_, Set<FontOption> p_329677_) {
+        this.f_315683_ = p_332248_;
+        this.m_95071_(p_329677_);
+    }
+
+    public void m_95071_(Set<FontOption> p_331404_) {
+        this.f_317127_ = List.of();
+        this.m_322787_();
+        this.f_317127_ = this.m_321621_(this.f_315683_, p_331404_);
+    }
+
+    private void m_322787_() {
+        this.m_95080_();
+        this.f_95056_.m_284192_();
+        this.f_95057_.m_284192_();
+        this.f_95058_.clear();
+        this.f_95053_ = SpecialGlyphs.MISSING.m_213604_(this::m_232556_);
+        this.f_95054_ = SpecialGlyphs.WHITE.m_213604_(this::m_232556_);
+    }
+
+    private List<GlyphProvider> m_321621_(List<GlyphProvider.Conditional> p_328855_, Set<FontOption> p_331640_) {
+        IntSet intset = new IntOpenHashSet();
+        List<GlyphProvider> list = new ArrayList<>();
+
+        for (GlyphProvider.Conditional glyphprovider$conditional : p_328855_) {
+            if (glyphprovider$conditional.f_316533_().m_319512_(p_331640_)) {
+                list.add(glyphprovider$conditional.f_316017_());
+                intset.addAll(glyphprovider$conditional.f_316017_().m_6990_());
+            }
+        }
+
+        Set<GlyphProvider> set = Sets.newHashSet();
+        intset.forEach(charIn -> {
+            for (GlyphProvider glyphprovider : list) {
+                GlyphInfo glyphinfo = glyphprovider.m_214022_(charIn);
+                if (glyphinfo != null) {
+                    set.add(glyphprovider);
+                    if (glyphinfo != SpecialGlyphs.MISSING) {
+                        this.f_95058_.computeIfAbsent(Mth.m_14167_(glyphinfo.m_83827_(false)), widthIn -> new IntArrayList()).add(charIn);
+                    }
+                    break;
+                }
+            }
+        });
+        return list.stream().filter(set::contains).toList();
+    }
+
+    @Override
+    public void close() {
+        this.m_95080_();
+    }
+
+    private void m_95080_() {
+        for (FontTexture fonttexture : this.f_95059_) {
+            fonttexture.close();
+        }
+
+        this.f_95059_.clear();
+    }
+
+    private static boolean m_243068_(GlyphInfo p_243323_) {
+        float f = p_243323_.m_83827_(false);
+        if (!(f < 0.0F) && !(f > 32.0F)) {
+            float f1 = p_243323_.m_83827_(true);
+            return f1 < 0.0F || f1 > 32.0F;
+        } else {
+            return true;
+        }
+    }
+
+    private FontSet.GlyphInfoFilter m_243121_(int p_243321_) {
+        GlyphInfo glyphinfo = null;
+
+        for (GlyphProvider glyphprovider : this.f_317127_) {
+            GlyphInfo glyphinfo1 = glyphprovider.m_214022_(p_243321_);
+            if (glyphinfo1 != null) {
+                if (glyphinfo == null) {
+                    glyphinfo = glyphinfo1;
+                }
+
+                if (!m_243068_(glyphinfo1)) {
+                    return new FontSet.GlyphInfoFilter(glyphinfo, glyphinfo1);
+                }
+            }
+        }
+
+        return glyphinfo != null ? new FontSet.GlyphInfoFilter(glyphinfo, SpecialGlyphs.MISSING) : FontSet.GlyphInfoFilter.f_243023_;
+    }
+
+    public GlyphInfo m_243128_(int p_243235_, boolean p_243251_) {
+        FontSet.GlyphInfoFilter fontset$glyphinfofilter = this.f_95057_.m_284412_(p_243235_);
+        return fontset$glyphinfofilter != null
+            ? fontset$glyphinfofilter.m_243099_(p_243251_)
+            : this.f_95057_.m_284450_(p_243235_, this::m_243121_).m_243099_(p_243251_);
+    }
+
+    private BakedGlyph m_232564_(int p_232565_) {
+        for (GlyphProvider glyphprovider : this.f_317127_) {
+            GlyphInfo glyphinfo = glyphprovider.m_214022_(p_232565_);
+            if (glyphinfo != null) {
+                return glyphinfo.m_213604_(this::m_232556_);
+            }
+        }
+
+        return this.f_95053_;
+    }
+
+    public BakedGlyph m_95078_(int p_95079_) {
+        BakedGlyph bakedglyph = this.f_95056_.m_284412_(p_95079_);
+        return bakedglyph != null ? bakedglyph : this.f_95056_.m_284450_(p_95079_, this::m_232564_);
+    }
+
+    private BakedGlyph m_232556_(SheetGlyphInfo p_232557_) {
+        for (FontTexture fonttexture : this.f_95059_) {
+            BakedGlyph bakedglyph = fonttexture.m_232568_(p_232557_);
+            if (bakedglyph != null) {
+                return bakedglyph;
+            }
+        }
+
+        ResourceLocation resourcelocation = this.f_95052_.m_266382_("/" + this.f_95059_.size());
+        boolean flag = p_232557_.m_213965_();
+        GlyphRenderTypes glyphrendertypes = flag ? GlyphRenderTypes.m_284354_(resourcelocation) : GlyphRenderTypes.m_284520_(resourcelocation);
+        FontTexture fonttexture1 = new FontTexture(glyphrendertypes, flag);
+        this.f_95059_.add(fonttexture1);
+        this.f_95051_.m_118495_(resourcelocation, fonttexture1);
+        BakedGlyph bakedglyph1 = fonttexture1.m_232568_(p_232557_);
+        return bakedglyph1 == null ? this.f_95053_ : bakedglyph1;
+    }
+
+    public BakedGlyph m_95067_(GlyphInfo p_95068_) {
+        IntList intlist = this.f_95058_.get(Mth.m_14167_(p_95068_.m_83827_(false)));
+        return intlist != null && !intlist.isEmpty() ? this.m_95078_(intlist.getInt(f_95050_.m_188503_(intlist.size()))) : this.f_95053_;
+    }
+
+    public ResourceLocation m_321601_() {
+        return this.f_95052_;
+    }
+
+    public BakedGlyph m_95064_() {
+        return this.f_95054_;
+    }
+
+    static record GlyphInfoFilter(GlyphInfo f_243013_, GlyphInfo f_243006_) {
+        static final FontSet.GlyphInfoFilter f_243023_ = new FontSet.GlyphInfoFilter(SpecialGlyphs.MISSING, SpecialGlyphs.MISSING);
+
+        GlyphInfo m_243099_(boolean p_243218_) {
+            return p_243218_ ? this.f_243006_ : this.f_243013_;
+        }
+    }
+}

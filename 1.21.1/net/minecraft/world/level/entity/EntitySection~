@@ -1,0 +1,161 @@
+package net.minecraft.world.level.entity;
+
+import it.unimi.dsi.fastutil.longs.Long2ObjectFunction;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongAVLTreeSet;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.longs.LongSortedSet;
+import java.util.Objects;
+import java.util.Spliterators;
+import java.util.PrimitiveIterator.OfLong;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
+import net.minecraft.core.SectionPos;
+import net.minecraft.util.AbortableIterationConsumer;
+import net.minecraft.util.VisibleForDebug;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.AABB;
+
+public class EntitySectionStorage<T extends EntityAccess> {
+    private final Class<T> f_156850_;
+    private final Long2ObjectFunction<Visibility> f_156851_;
+    private final Long2ObjectMap<EntitySection<T>> f_156852_ = new Long2ObjectOpenHashMap<>();
+    private final LongSortedSet f_156853_ = new LongAVLTreeSet();
+    private boolean updated;
+
+    public EntitySectionStorage(Class<T> p_156855_, Long2ObjectFunction<Visibility> p_156856_) {
+        this.f_156850_ = p_156855_;
+        this.f_156851_ = p_156856_;
+    }
+
+    public void m_188362_(AABB p_188363_, AbortableIterationConsumer<EntitySection<T>> p_261588_) {
+        int i = 2;
+        int j = SectionPos.m_175552_(p_188363_.f_82288_ - 2.0);
+        int k = SectionPos.m_175552_(p_188363_.f_82289_ - 4.0);
+        int l = SectionPos.m_175552_(p_188363_.f_82290_ - 2.0);
+        int i1 = SectionPos.m_175552_(p_188363_.f_82291_ + 2.0);
+        int j1 = SectionPos.m_175552_(p_188363_.f_82292_ + 0.0);
+        int k1 = SectionPos.m_175552_(p_188363_.f_82293_ + 2.0);
+
+        for (int l1 = j; l1 <= i1; l1++) {
+            long i2 = SectionPos.m_123209_(l1, 0, 0);
+            long j2 = SectionPos.m_123209_(l1, -1, -1);
+            LongIterator longiterator = this.f_156853_.subSet(i2, j2 + 1L).iterator();
+
+            while (longiterator.hasNext()) {
+                long k2 = longiterator.nextLong();
+                int l2 = SectionPos.m_123225_(k2);
+                int i3 = SectionPos.m_123230_(k2);
+                if (l2 >= k && l2 <= j1 && i3 >= l && i3 <= k1) {
+                    EntitySection<T> entitysection = this.f_156852_.get(k2);
+                    if (entitysection != null
+                        && !entitysection.m_156833_()
+                        && entitysection.m_156848_().m_157694_()
+                        && p_261588_.m_260972_(entitysection).m_261146_()) {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    public LongStream m_156861_(long p_156862_) {
+        int i = ChunkPos.m_45592_(p_156862_);
+        int j = ChunkPos.m_45602_(p_156862_);
+        LongSortedSet longsortedset = this.m_156858_(i, j);
+        if (longsortedset.isEmpty()) {
+            return LongStream.empty();
+        } else {
+            OfLong oflong = longsortedset.iterator();
+            return StreamSupport.longStream(Spliterators.spliteratorUnknownSize(oflong, 1301), false);
+        }
+    }
+
+    private LongSortedSet m_156858_(int p_156859_, int p_156860_) {
+        long i = SectionPos.m_123209_(p_156859_, 0, p_156860_);
+        long j = SectionPos.m_123209_(p_156859_, -1, p_156860_);
+        return this.f_156853_.subSet(i, j + 1L);
+    }
+
+    public Stream<EntitySection<T>> m_156888_(long p_156889_) {
+        return this.m_156861_(p_156889_).mapToObj(this.f_156852_::get).filter(Objects::nonNull);
+    }
+
+    private static long m_156899_(long p_156900_) {
+        return ChunkPos.m_45589_(SectionPos.m_123213_(p_156900_), SectionPos.m_123230_(p_156900_));
+    }
+
+    public EntitySection<T> m_156893_(long p_156894_) {
+        int i = this.f_156852_.size();
+
+        EntitySection entitysection;
+        try {
+            entitysection = this.f_156852_.computeIfAbsent(p_156894_, this::m_156901_);
+        } finally {
+            if (this.f_156852_.size() != i) {
+                this.updated = true;
+            }
+        }
+
+        return entitysection;
+    }
+
+    @Nullable
+    public EntitySection<T> m_156895_(long p_156896_) {
+        return this.f_156852_.get(p_156896_);
+    }
+
+    private EntitySection<T> m_156901_(long p_156902_) {
+        long i = m_156899_(p_156902_);
+        Visibility visibility = this.f_156851_.get(i);
+        this.f_156853_.add(p_156902_);
+        return new EntitySection<>(this.f_156850_, visibility);
+    }
+
+    public LongSet m_156857_() {
+        LongSet longset = new LongOpenHashSet();
+        this.f_156852_.keySet().forEach(longPosIn -> longset.add(m_156899_(longPosIn)));
+        return longset;
+    }
+
+    public void m_261111_(AABB p_261820_, AbortableIterationConsumer<T> p_261992_) {
+        this.m_188362_(p_261820_, sectionIn -> sectionIn.m_260830_(p_261820_, p_261992_));
+    }
+
+    public <U extends T> void m_261191_(EntityTypeTest<T, U> p_261630_, AABB p_261843_, AbortableIterationConsumer<U> p_261742_) {
+        this.m_188362_(p_261843_, sectionIn -> sectionIn.m_188348_(p_261630_, p_261843_, p_261742_));
+    }
+
+    public void m_156897_(long p_156898_) {
+        int i = this.f_156852_.size();
+        this.f_156852_.remove(p_156898_);
+        this.f_156853_.remove(p_156898_);
+        if (this.f_156852_.size() != i) {
+            this.updated = true;
+        }
+    }
+
+    @VisibleForDebug
+    public int m_156887_() {
+        return this.f_156853_.size();
+    }
+
+    public boolean isUpdated() {
+        return this.updated;
+    }
+
+    public boolean resetUpdated() {
+        boolean flag = this.updated;
+        this.updated = false;
+        return flag;
+    }
+
+    public LongSet getSectionKeys() {
+        return this.f_156852_.keySet();
+    }
+}

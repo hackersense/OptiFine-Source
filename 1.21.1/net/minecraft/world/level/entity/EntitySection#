@@ -1,0 +1,17 @@
+***************
+*** 107,113 ****
+  
+      public LongSet m_156857_() {
+          LongSet longset = new LongOpenHashSet();
+-         this.f_156852_.keySet().forEach(p_156886_ -> longset.add(m_156899_(p_156886_)));
+          return longset;
+      }
+  
+--- 107,113 ----
+  
+      public LongSet m_156857_() {
+          LongSet longset = new LongOpenHashSet();
++         this.f_156852_.keySet().forEach((long p_156886_) -> longset.add(m_156899_(p_156886_)));
+          return longset;
+      }
+  

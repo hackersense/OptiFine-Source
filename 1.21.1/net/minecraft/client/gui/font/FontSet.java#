@@ -1,0 +1,17 @@
+***************
+*** 72,78 ****
+          }
+  
+          Set<GlyphProvider> set = Sets.newHashSet();
+-         intset.forEach(p_232561_ -> {
+              for (GlyphProvider glyphprovider : list) {
+                  GlyphInfo glyphinfo = glyphprovider.m_214022_(p_232561_);
+                  if (glyphinfo != null) {
+--- 72,78 ----
+          }
+  
+          Set<GlyphProvider> set = Sets.newHashSet();
++         intset.forEach((int p_232561_) -> {
+              for (GlyphProvider glyphprovider : list) {
+                  GlyphInfo glyphinfo = glyphprovider.m_214022_(p_232561_);
+                  if (glyphinfo != null) {
